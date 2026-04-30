@@ -1631,7 +1631,8 @@ async function loadMessages() {
 }
 
 function updateBadgeAndHeader() {
-  const unread = allMessages.filter(m => !m.read).length;
+  const groups = groupMessagesByUser(allMessages);
+  const unread = groups.filter(g => g.unreadCt > 0).length;
   const badge  = document.getElementById('msgBadge');
   const navBadge = document.getElementById('msgNavBadge');
   if (unread > 0) {
@@ -1644,10 +1645,40 @@ function updateBadgeAndHeader() {
     badge.style.display  = 'none';
     navBadge.style.display = 'none';
   }
-  const subText = `${allMessages.length} message${allMessages.length !== 1 ? 's' : ''}${unread > 0 ? ` · ${unread} unread` : ''} · 🟢 live`;
+  const subText = `${groups.length} user${groups.length !== 1 ? 's' : ''}${unread > 0 ? ` · ${unread} with new messages` : ''} · 🟢 live`;
   document.getElementById('msgPanelSub').textContent = subText;
   const pageSubEl = document.getElementById('msgPageSub');
   if (pageSubEl) pageSubEl.textContent = subText;
+}
+
+function groupMessagesByUser(messages) {
+  // Group messages by track_code (preferred) or by name+email key
+  const groups = new Map();
+  messages.forEach(m => {
+    const key = m.track_code
+      ? 'tc:' + m.track_code
+      : 'id:' + (m.email || m.name || m.id);
+    if (!groups.has(key)) {
+      groups.set(key, { key, msgs: [] });
+    }
+    groups.get(key).msgs.push(m);
+  });
+  // For each group pick the latest message and compute unread count
+  const result = [];
+  groups.forEach(g => {
+    const sorted = g.msgs.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const latest  = sorted[0];
+    const unreadCt = g.msgs.filter(m => !m.read && !m.reply).length;
+    const hasUnreplied = g.msgs.some(m => !m.reply);
+    result.push({ latest, msgs: sorted, unreadCt, hasUnreplied });
+  });
+  // Sort groups: unread first, then by latest message time
+  result.sort((a, b) => {
+    if (a.unreadCt > 0 && b.unreadCt === 0) return -1;
+    if (b.unreadCt > 0 && a.unreadCt === 0) return 1;
+    return new Date(b.latest.created_at) - new Date(a.latest.created_at);
+  });
+  return result;
 }
 
 function renderMessages() {
@@ -1657,22 +1688,29 @@ function renderMessages() {
     return;
   }
 
-  list.innerHTML = allMessages.map(m => {
-    const isUnread = !m.reply && !m.read;
+  const groups = groupMessagesByUser(allMessages);
+  list.innerHTML = groups.map(g => {
+    const m        = g.latest;
+    const isUnread = g.unreadCt > 0;
     const timeStr  = m.created_at ? formatMsgTime(new Date(m.created_at)) : '—';
     const isImage  = (m.message || '').startsWith('[image]') || (m.message || '').startsWith('[image-path]');
     const preview  = isImage
       ? `<span class="msg-item-preview-img">📷 Photo</span>`
       : escHtml((m.message || '').substring(0, 120));
     const trackBit = m.track_code ? `<div class="msg-item-track">📦 ${escHtml(m.track_code)}</div>` : '';
-    const repliedBadge = m.reply
+    const repliedBadge = !g.hasUnreplied
       ? `<span style="font-size:0.6rem;background:var(--success-dim);color:var(--success);border:1px solid rgba(52,211,153,0.3);border-radius:6px;padding:1px 6px;flex-shrink:0">✓ Replied</span>`
+      : '';
+    const countBadge = g.msgs.length > 1
+      ? `<span style="font-size:0.6rem;background:var(--indigo-dim);color:var(--indigo-light);border:1px solid var(--border2);border-radius:6px;padding:1px 6px;flex-shrink:0">${g.msgs.length} msgs</span>`
+      : '';
+    const unreadBadge = g.unreadCt > 0
+      ? `<span style="font-size:0.6rem;background:var(--danger-dim);color:var(--danger);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:1px 6px;flex-shrink:0;font-weight:800">${g.unreadCt} new</span>`
       : '';
     return `<div class="msg-item${isUnread ? ' unread' : ''}" onclick="openReplyModal(${m.id})">
       <div class="msg-item-head">
         <span class="msg-item-name">${escHtml(m.name || m.full_name || 'Unknown')}</span>
-        ${repliedBadge}
-        ${isUnread ? '<span class="msg-unread-dot"></span>' : ''}
+        ${unreadBadge}${repliedBadge}${countBadge}
         <span class="msg-item-time">${timeStr}</span>
       </div>
       ${trackBit}
@@ -1689,22 +1727,29 @@ function renderMessagesPage() {
     list.innerHTML = `<div class="msg-empty"><div class="msg-empty-icon">💬</div>No messages yet.<br>Messages sent from the tracking page will appear here.</div>`;
     return;
   }
-  list.innerHTML = allMessages.map(m => {
-    const isUnread = !m.reply && !m.read;
+  const groups = groupMessagesByUser(allMessages);
+  list.innerHTML = groups.map(g => {
+    const m        = g.latest;
+    const isUnread = g.unreadCt > 0;
     const timeStr  = m.created_at ? formatMsgTime(new Date(m.created_at)) : '—';
     const isImage  = (m.message || '').startsWith('[image]') || (m.message || '').startsWith('[image-path]');
     const preview  = isImage
       ? `<span class="msg-item-preview-img">📷 Photo</span>`
       : escHtml((m.message || '').substring(0, 120));
     const trackBit = m.track_code ? `<div class="msg-item-track">📦 ${escHtml(m.track_code)}</div>` : '';
-    const repliedBadge = m.reply
+    const repliedBadge = !g.hasUnreplied
       ? `<span style="font-size:0.6rem;background:var(--success-dim);color:var(--success);border:1px solid rgba(52,211,153,0.3);border-radius:6px;padding:1px 6px;flex-shrink:0">✓ Replied</span>`
+      : '';
+    const countBadge = g.msgs.length > 1
+      ? `<span style="font-size:0.6rem;background:var(--indigo-dim);color:var(--indigo-light);border:1px solid var(--border2);border-radius:6px;padding:1px 6px;flex-shrink:0">${g.msgs.length} msgs</span>`
+      : '';
+    const unreadBadge = g.unreadCt > 0
+      ? `<span style="font-size:0.6rem;background:var(--danger-dim);color:var(--danger);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:1px 6px;flex-shrink:0;font-weight:800">${g.unreadCt} new</span>`
       : '';
     return `<div class="msg-item${isUnread ? ' unread' : ''}" onclick="openReplyModal(${m.id})">
       <div class="msg-item-head">
         <span class="msg-item-name">${escHtml(m.name || m.full_name || 'Unknown')}</span>
-        ${repliedBadge}
-        ${isUnread ? '<span class="msg-unread-dot"></span>' : ''}
+        ${unreadBadge}${repliedBadge}${countBadge}
         <span class="msg-item-time">${timeStr}</span>
       </div>
       ${trackBit}
