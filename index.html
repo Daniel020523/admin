@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Global Sky Shipment — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050810;
+    --surface: #090e1e;
+    --surface2: #0d1428;
+    --surface3: #111b35;
+    --border: rgba(99,102,241,0.12);
+    --border2: rgba(99,102,241,0.22);
+    --indigo: #6366f1;
+    --indigo-bright: #818cf8;
+    --indigo-light: #a5b4fc;
+    --indigo-dim: rgba(99,102,241,0.1);
+    --indigo-glow: rgba(99,102,241,0.25);
+    --white: #ffffff;
+    --text: #e2e8ff;
+    --muted: #7280b0;
+    --muted2: #4a5680;
+    --success: #34d399;
+    --success-dim: rgba(52,211,153,0.1);
+    --danger: #f87171;
+    --danger-dim: rgba(248,113,113,0.1);
+    --warning: #fbbf24;
+    --warning-dim: rgba(251,191,36,0.1);
+    --cyan: #22d3ee;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background ── */
+  .bg-fx {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(99,102,241,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 50% at 80% 100%, rgba(99,102,241,0.08) 0%, transparent 60%);
+  }
+  .grid-fx {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ── Login Screen ── */
+  #loginScreen {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem;
+    background: var(--bg);
+  }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 24px;
+    padding: 2.5rem 2rem;
+    width: 100%; max-width: 400px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 60px rgba(99,102,241,0.08);
+    animation: popIn 0.5s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(0.93) translateY(20px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+  .login-icon {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: linear-gradient(135deg, #4338ca, #6366f1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; margin-bottom: 1.5rem;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.4);
+  }
+  .login-title {
+    font-size: 1.6rem; font-weight: 800; color: #fff;
+    margin-bottom: 0.35rem; letter-spacing: -0.5px;
+  }
+  .login-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.75rem; line-height: 1.5; }
+
+  .login-label {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem;
+    display: block;
+  }
+  .login-input {
+    width: 100%; padding: 0.85rem 1rem;
+    background: var(--surface2); border: 1.5px solid var(--border2);
+    border-radius: 12px; color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 600;
+    letter-spacing: 3px; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 1.25rem;
+  }
+  .login-input:focus {
+    border-color: var(--indigo-bright);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+  }
+  .login-btn {
+    width: 100%; padding: 0.9rem;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    border: none; border-radius: 12px; color: #fff;
+    font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 700;
+    letter-spacing: 1px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(99,102,241,0.55); }
+  .login-error {
+    display: none;
+    background: var(--danger-dim); border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 10px; padding: 0.7rem 0.9rem;
+    font-size: 0.8rem; color: #fca5a5; margin-top: 0.75rem; text-align: center;
+  }
+
+  /* ── Main App ── */
+  #app { display: none; position: relative; z-index: 2; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+    padding: 1.5rem 1rem;
+  }
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+    .sidebar.open { transform: translateX(0); }
+    .content { margin-left: 0 !important; }
+  }
+
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 2rem; padding: 0 0.25rem;
+  }
+  .sidebar-logo-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #4338ca, #6366f1);
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.4); flex-shrink: 0;
+  }
+  .sidebar-logo-text { font-size: 0.85rem; font-weight: 800; color: #fff; letter-spacing: 0.5px; line-height: 1.2; }
+  .sidebar-logo-sub { font-size: 0.58rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+  .nav-section { font-size: 0.6rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted2); margin: 1rem 0.25rem 0.5rem; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.65rem 0.75rem; border-radius: 10px;
+    font-size: 0.82rem; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: all 0.18s; margin-bottom: 2px;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active {
+    background: var(--indigo-dim); color: var(--indigo-light);
+    border-color: var(--border2);
+  }
+  .nav-item .nav-icon { font-size: 1rem; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto; font-size: 0.65rem; font-weight: 700;
+    background: rgba(99,102,241,0.2); color: var(--indigo-light);
+    padding: 0.1rem 0.45rem; border-radius: 8px; letter-spacing: 0.5px;
+  }
+
+  .sidebar-footer { margin-top: auto; }
+  .logout-btn {
+    width: 100%; display: flex; align-items: center; gap: 0.65rem;
+    padding: 0.65rem 0.75rem; border-radius: 10px;
+    font-size: 0.82rem; font-weight: 600; color: var(--muted);
+    cursor: pointer; border: 1px solid transparent;
+    background: none; transition: all 0.18s;
+  }
+  .logout-btn:hover { background: var(--danger-dim); color: var(--danger); border-color: rgba(248,113,113,0.2); }
+
+  /* ── Content ── */
+  .content { margin-left: 240px; padding: 2rem; min-height: 100vh; }
+  @media (max-width: 768px) { .content { margin-left: 0; padding: 1rem; } }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+  }
+  .topbar-title { font-size: 1.5rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .topbar-sub { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+
+  .hamburger {
+    display: none; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 0.45rem 0.6rem; cursor: pointer; color: var(--text);
+    font-size: 1.1rem;
+  }
+  @media (max-width: 768px) { .hamburger { display: flex; align-items: center; } }
+
+  /* ── Stats Row ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.25rem 1.5rem;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--border2); }
+  .stat-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  .stat-val { font-size: 2rem; font-weight: 800; color: #fff; letter-spacing: -1px; }
+  .stat-sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
+
+  /* ── Search Bar ── */
+  .search-bar {
+    display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+  }
+  .search-input {
+    flex: 1; min-width: 200px;
+    background: var(--surface); border: 1.5px solid var(--border2);
+    border-radius: 12px; padding: 0.75rem 1rem;
+    color: #fff; font-family: 'Outfit', sans-serif; font-size: 0.88rem;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-input:focus { border-color: var(--indigo-bright); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+  .search-input::placeholder { color: var(--muted2); }
+
+  .filter-select {
+    background: var(--surface); border: 1.5px solid var(--border2);
+    border-radius: 12px; padding: 0.75rem 1rem;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.85rem;
+    outline: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237280b0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.75rem center;
+    padding-right: 2.2rem; -webkit-appearance: none;
+  }
+  .filter-select option { background: #0d1428; }
+
+  .refresh-btn {
+    padding: 0.75rem 1.1rem;
+    background: var(--indigo-dim); border: 1px solid var(--border2);
+    border-radius: 12px; color: var(--indigo-light);
+    font-family: 'Outfit', sans-serif; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: all 0.18s; display: flex; align-items: center; gap: 0.4rem;
+  }
+  .refresh-btn:hover { background: rgba(99,102,241,0.18); }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px; overflow: hidden;
+  }
+  .table-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .table-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+  .table-count { font-size: 0.72rem; color: var(--muted); background: var(--surface2); padding: 0.2rem 0.6rem; border-radius: 8px; border: 1px solid var(--border); }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th {
+    padding: 0.75rem 1rem;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted); text-align: left; white-space: nowrap;
+    background: var(--surface2);
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(99,102,241,0.04); }
+  td { padding: 0.85rem 1rem; font-size: 0.82rem; color: var(--text); vertical-align: middle; }
+
+  .td-code { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; font-weight: 600; color: var(--indigo-light); letter-spacing: 1px; }
+  .td-name { font-weight: 600; }
+  .td-email { color: var(--muted); font-size: 0.75rem; }
+  .td-fee { font-weight: 700; color: var(--success); }
+  .td-date { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+
+  /* Status badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 0.25rem 0.65rem; border-radius: 20px;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.verified { background: var(--success-dim); border: 1px solid rgba(52,211,153,0.3); color: var(--success); }
+  .badge.pending  { background: var(--warning-dim); border: 1px solid rgba(251,191,36,0.3); color: var(--warning); }
+  .badge.in_transit { background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3); color: var(--cyan); }
+  .badge.arrived  { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.35); color: #c4b5fd; }
+  .badge.delivered { background: var(--success-dim); border: 1px solid rgba(52,211,153,0.4); color: #6ee7b7; }
+  .badge.pending_verification { background: var(--warning-dim); border: 1px solid rgba(251,191,36,0.3); color: var(--warning); }
+
+  /* Action buttons */
+  .action-row { display: flex; gap: 0.4rem; }
+  .act-btn {
+    padding: 0.35rem 0.65rem; border-radius: 8px; font-size: 0.72rem; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+    font-family: 'Outfit', sans-serif; white-space: nowrap;
+  }
+  .act-btn.view  { background: var(--indigo-dim); border-color: var(--border2); color: var(--indigo-light); }
+  .act-btn.view:hover { background: rgba(99,102,241,0.2); }
+  .act-btn.del   { background: var(--danger-dim); border-color: rgba(248,113,113,0.2); color: var(--danger); }
+  .act-btn.del:hover { background: rgba(248,113,113,0.18); }
+
+  /* Empty / loading state */
+  .empty-state {
+    padding: 3rem 1rem; text-align: center;
+    color: var(--muted); font-size: 0.85rem; line-height: 1.7;
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5; }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(5,8,16,0.88); backdrop-filter: blur(12px);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 2rem 1rem; overflow-y: auto;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 22px; max-width: 560px; width: 100%;
+    padding: 2rem;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+    transform: translateY(16px) scale(0.97);
+    transition: transform 0.3s;
+    margin: auto;
+  }
+  .modal-backdrop.open .modal { transform: translateY(0) scale(1); }
+
+  .modal-title { font-size: 1.25rem; font-weight: 800; color: #fff; margin-bottom: 0.3rem; }
+  .modal-sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.5rem; }
+
+  .modal-section { font-size: 0.62rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--indigo-light); margin: 1.25rem 0 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  @media (max-width: 440px) { .info-grid { grid-template-columns: 1fr; } }
+  .info-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.9rem; }
+  .info-key { font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
+  .info-val { font-size: 0.88rem; font-weight: 600; color: var(--text); word-break: break-word; }
+  .info-val.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--indigo-light); letter-spacing: 1px; }
+  .info-item.full { grid-column: 1 / -1; }
+
+  /* Status selector in modal */
+  .status-select-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.5rem; }
+  .status-select {
+    width: 100%; padding: 0.8rem 1rem;
+    background: var(--surface2); border: 1.5px solid var(--border2);
+    border-radius: 12px; color: var(--text);
+    font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 600;
+    outline: none; cursor: pointer; margin-bottom: 1rem;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237280b0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem;
+  }
+  .status-select option { background: #0d1428; }
+  .status-select:focus { border-color: var(--indigo-bright); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+
+  .modal-btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .modal-btn {
+    flex: 1; padding: 0.85rem; border-radius: 12px;
+    font-family: 'Outfit', sans-serif; font-size: 0.88rem; font-weight: 700;
+    cursor: pointer; transition: all 0.18s; border: 1px solid transparent;
+    display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+  }
+  .modal-btn.primary { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; box-shadow: 0 4px 16px rgba(99,102,241,0.35); border-color: transparent; }
+  .modal-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.5); }
+  .modal-btn.cancel  { background: var(--surface2); color: var(--muted); border-color: var(--border2); }
+  .modal-btn.cancel:hover { color: var(--text); border-color: var(--indigo-light); }
+  .modal-btn.danger  { background: var(--danger-dim); color: var(--danger); border-color: rgba(248,113,113,0.3); }
+  .modal-btn.danger:hover { background: rgba(248,113,113,0.18); }
+
+  .modal-success {
+    display: none;
+    background: var(--success-dim); border: 1px solid rgba(52,211,153,0.3);
+    border-radius: 10px; padding: 0.7rem 0.9rem;
+    font-size: 0.8rem; color: var(--success); margin-top: 0.75rem; text-align: center;
+  }
+  .modal-error-msg {
+    display: none;
+    background: var(--danger-dim); border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 10px; padding: 0.7rem 0.9rem;
+    font-size: 0.8rem; color: var(--danger); margin-top: 0.75rem; text-align: center;
+  }
+
+  /* ── Delete confirm ── */
+  .del-modal-body { text-align: center; padding: 0.5rem 0; }
+  .del-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .del-title { font-size: 1.15rem; font-weight: 800; color: #fff; margin-bottom: 0.4rem; }
+  .del-sub { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+  .del-code { font-family: 'JetBrains Mono', monospace; color: var(--danger); font-weight: 700; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 14px; padding: 0.9rem 1.25rem;
+    font-size: 0.82rem; font-weight: 600; color: var(--text);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    display: flex; align-items: center; gap: 0.6rem;
+    transform: translateY(20px); opacity: 0;
+    transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(52,211,153,0.4); }
+  .toast.error   { border-color: rgba(248,113,113,0.4); }
+
+  /* Spin */
+  .spin { animation: spinAnim 0.9s linear infinite; display: inline-block; }
+  @keyframes spinAnim { to { transform: rotate(360deg); } }
+
+  /* Page sections */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Scroll */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="bg-fx"></div>
+<div class="grid-fx"></div>
+
+<!-- ════════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon">🛡️</div>
+    <div class="login-title">Admin Access</div>
+    <p class="login-sub">Global Sky Shipment · Restricted Area.<br>Enter your admin password to continue.</p>
+    <label class="login-label" for="pwdInput">Password</label>
+    <input type="password" class="login-input" id="pwdInput" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()" autocomplete="current-password" />
+    <button class="login-btn" onclick="doLogin()">🔓 &nbsp;Enter Admin Panel</button>
+    <div class="login-error" id="loginError">⚠ Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════ -->
+<div id="app">
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">✈️</div>
+        <div>
+          <div class="sidebar-logo-text">GLOBAL SKY</div>
+          <div class="sidebar-logo-sub">Admin Panel</div>
+        </div>
+      </div>
+
+      <div class="nav-section">Navigation</div>
+      <div class="nav-item active" id="nav-overview" onclick="switchPage('overview')">
+        <span class="nav-icon">📊</span> Overview
+      </div>
+      <div class="nav-item" id="nav-bookings" onclick="switchPage('bookings')">
+        <span class="nav-icon">📦</span> All Bookings
+        <span class="nav-badge" id="totalBadge">—</span>
+      </div>
+      <div class="nav-item" id="nav-search" onclick="switchPage('search')">
+        <span class="nav-icon">🔍</span> Search
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="doLogout()">🚪 &nbsp;Sign Out</button>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Topbar -->
+      <div class="topbar">
+        <div>
+          <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        </div>
+        <div style="flex:1">
+          <div class="topbar-title" id="pageTitle">Overview</div>
+          <div class="topbar-sub" id="pageSub">Welcome back, Admin</div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);text-align:right">
+          <div id="clockEl" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--indigo-light)"></div>
+          <div style="margin-top:2px">Global Sky Shipment</div>
+        </div>
+      </div>
+
+      <!-- ── OVERVIEW PAGE ── -->
+      <div class="page active" id="page-overview">
+        <div class="stats-row" id="statsRow">
+          <div class="stat-card">
+            <div class="stat-label">Total Bookings</div>
+            <div class="stat-val" id="statTotal">—</div>
+            <div class="stat-sub">All time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Verified</div>
+            <div class="stat-val" id="statVerified" style="color:var(--success)">—</div>
+            <div class="stat-sub">Email confirmed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">In Transit</div>
+            <div class="stat-val" id="statTransit" style="color:var(--cyan)">—</div>
+            <div class="stat-sub">Active shipments</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pending</div>
+            <div class="stat-val" id="statPending" style="color:var(--warning)">—</div>
+            <div class="stat-sub">Awaiting verification</div>
+          </div>
+        </div>
+
+        <!-- Recent bookings preview -->
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Recent Bookings</span>
+            <span class="table-count" id="recentCount">—</span>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Track Code</th>
+                <th>Recipient</th>
+                <th>Country</th>
+                <th>Status</th>
+                <th>Fee</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr></thead>
+              <tbody id="recentTbody"><tr><td colspan="7"><div class="empty-state"><div class="spin">⟳</div><br>Loading…</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ALL BOOKINGS PAGE ── -->
+      <div class="page" id="page-bookings">
+        <div class="search-bar">
+          <input type="text" class="search-input" id="bookingsSearch" placeholder="Search by name, email, track code…" oninput="filterBookings()" />
+          <select class="filter-select" id="statusFilter" onchange="filterBookings()">
+            <option value="">All Statuses</option>
+            <option value="pending_verification">Pending Verification</option>
+            <option value="verified">Verified</option>
+            <option value="in_transit">In Transit</option>
+            <option value="arrived">Arrived at Airport</option>
+            <option value="delivered">Delivered</option>
+          </select>
+          <button class="refresh-btn" onclick="loadAllBookings()">⟳ Refresh</button>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">All Bookings</span>
+            <span class="table-count" id="allCount">—</span>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Track Code</th>
+                <th>Recipient</th>
+                <th>Email</th>
+                <th>Country</th>
+                <th>Airport</th>
+                <th>Status</th>
+                <th>Fee</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr></thead>
+              <tbody id="allTbody"><tr><td colspan="9"><div class="empty-state"><div class="spin">⟳</div><br>Loading…</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SEARCH PAGE ── -->
+      <div class="page" id="page-search">
+        <div class="search-bar">
+          <input type="text" class="search-input" id="searchQuery" placeholder="Enter track code (GSS-XXXXX) or email address…" onkeydown="if(event.key==='Enter') doSearch()" />
+          <button class="refresh-btn" style="background:var(--indigo-dim);color:var(--indigo-light);border-color:var(--border2)" onclick="doSearch()">🔍 Search</button>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Search Results</span>
+            <span class="table-count" id="searchCount">—</span>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Track Code</th>
+                <th>Recipient</th>
+                <th>Email</th>
+                <th>Country</th>
+                <th>Status</th>
+                <th>Fee</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr></thead>
+              <tbody id="searchTbody"><tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div><br>Enter a track code or email above to search.</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /layout -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════
+     VIEW / EDIT MODAL
+═══════════════════════════════ -->
+<div class="modal-backdrop" id="viewModal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
+      <div class="modal-title" id="modalTitle">Booking Details</div>
+      <button onclick="closeModal('viewModal')" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div class="modal-sub" id="modalSub">—</div>
+
+    <div class="modal-section">Recipient</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-key">Full Name</div><div class="info-val" id="m-fullName">—</div></div>
+      <div class="info-item"><div class="info-key">Sender Name</div><div class="info-val" id="m-senderName">—</div></div>
+      <div class="info-item"><div class="info-key">Phone</div><div class="info-val" id="m-phone">—</div></div>
+      <div class="info-item"><div class="info-key">Email</div><div class="info-val" id="m-email" style="font-size:0.78rem">—</div></div>
+      <div class="info-item full"><div class="info-key">Package Code</div><div class="info-val mono" id="m-pkgNum">—</div></div>
+    </div>
+
+    <div class="modal-section">Delivery</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-key">Country</div><div class="info-val" id="m-country">—</div></div>
+      <div class="info-item"><div class="info-key">Fee</div><div class="info-val" id="m-fee" style="color:var(--success);font-size:1rem;font-weight:800">—</div></div>
+      <div class="info-item full"><div class="info-key">Airport Hub</div><div class="info-val" id="m-airport" style="font-size:0.82rem">—</div></div>
+      <div class="info-item full"><div class="info-key">Address</div><div class="info-val" id="m-address">—</div></div>
+    </div>
+
+    <div class="modal-section">Update Status</div>
+    <label class="status-select-label">Change Shipment Status</label>
+    <select class="status-select" id="m-statusSelect">
+      <option value="pending_verification">⏳ Pending Verification</option>
+      <option value="verified">✅ Verified</option>
+      <option value="in_transit">✈️ In Transit</option>
+      <option value="arrived">🛬 Arrived at Airport</option>
+      <option value="delivered">🎉 Delivered</option>
+    </select>
+
+    <div class="modal-btn-row">
+      <button class="modal-btn cancel" onclick="closeModal('viewModal')">Cancel</button>
+      <button class="modal-btn primary" id="saveStatusBtn" onclick="saveStatus()">
+        💾 &nbsp;Save Status
+      </button>
+    </div>
+    <div class="modal-success" id="saveSuccess">✓ Status updated successfully!</div>
+    <div class="modal-error-msg" id="saveError">⚠ Failed to update. Try again.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     DELETE CONFIRM MODAL
+═══════════════════════════════ -->
+<div class="modal-backdrop" id="delModal">
+  <div class="modal" style="max-width:420px">
+    <div class="del-modal-body">
+      <div class="del-icon">🗑️</div>
+      <div class="del-title">Delete Booking?</div>
+      <p class="del-sub">This will permanently remove booking <span class="del-code" id="delCode">—</span> from the database. This action cannot be undone.</p>
+    </div>
+    <div class="modal-btn-row">
+      <button class="modal-btn cancel" onclick="closeModal('delModal')">Cancel</button>
+      <button class="modal-btn danger" id="confirmDelBtn" onclick="confirmDelete()">🗑️ &nbsp;Delete Permanently</button>
+    </div>
+    <div class="modal-error-msg" id="delError">⚠ Failed to delete. Try again.</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://azxbtwklromrnmyutmoz.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_MaHxITBZRvjweKDwS4cr8g__A6jZI0k';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ⚠️  CHANGE THIS PASSWORD before deploying
+const ADMIN_PASSWORD = 'GlobalSky@Admin2025';
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let allBookings   = [];
+let filteredData  = [];
+let currentEditId = null;
+let currentDelId  = null;
+
+// ═══════════════════════════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════════════════════════
+function doLogin() {
+  const pwd = document.getElementById('pwdInput').value;
+  if (pwd === ADMIN_PASSWORD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    const el = document.getElementById('loginError');
+    el.style.display = 'block';
+    document.getElementById('pwdInput').value = '';
+    document.getElementById('pwdInput').focus();
+    setTimeout(() => el.style.display = 'none', 3000);
+  }
+}
+
+function doLogout() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('pwdInput').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+function initApp() {
+  startClock();
+  loadDashboard();
+}
+
+function startClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('clockEl').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════════════════
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+
+  const titles = { overview: ['Overview', 'Dashboard summary'], bookings: ['All Bookings', 'View and manage every booking'], search: ['Search', 'Find a booking by code or email'] };
+  document.getElementById('pageTitle').textContent = titles[name][0];
+  document.getElementById('pageSub').textContent   = titles[name][1];
+
+  if (name === 'bookings') loadAllBookings();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD DASHBOARD
+// ═══════════════════════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const { data, error } = await _sb.from('bookings').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    allBookings = data || [];
+
+    const total    = allBookings.length;
+    const verified = allBookings.filter(b => b.status === 'verified').length;
+    const transit  = allBookings.filter(b => b.status === 'in_transit' || b.status === 'arrived').length;
+    const pending  = allBookings.filter(b => !b.status || b.status === 'pending_verification' || b.status === 'pending').length;
+    const delivered = allBookings.filter(b => b.status === 'delivered').length;
+
+    document.getElementById('statTotal').textContent    = total;
+    document.getElementById('statVerified').textContent = verified;
+    document.getElementById('statTransit').textContent  = transit;
+    document.getElementById('statPending').textContent  = pending;
+    document.getElementById('totalBadge').textContent   = total;
+
+    const recent = allBookings.slice(0, 10);
+    document.getElementById('recentCount').textContent = `${recent.length} of ${total}`;
+    renderTable('recentTbody', recent, 7);
+
+  } catch (err) {
+    console.error(err);
+    showToast('Failed to load bookings.', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ALL BOOKINGS
+// ═══════════════════════════════════════════════════════════
+async function loadAllBookings() {
+  document.getElementById('allTbody').innerHTML = `<tr><td colspan="9"><div class="empty-state"><span class="spin">⟳</span><br>Loading…</div></td></tr>`;
+  try {
+    const { data, error } = await _sb.from('bookings').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    allBookings = data || [];
+    filterBookings();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('allTbody').innerHTML = `<tr><td colspan="9"><div class="empty-state">⚠ Failed to load. Check your connection.</div></td></tr>`;
+  }
+}
+
+function filterBookings() {
+  const q      = (document.getElementById('bookingsSearch').value || '').toLowerCase();
+  const status = document.getElementById('statusFilter').value;
+  filteredData = allBookings.filter(b => {
+    const matchQ = !q ||
+      (b.track_code   || '').toLowerCase().includes(q) ||
+      (b.full_name    || '').toLowerCase().includes(q) ||
+      (b.email        || '').toLowerCase().includes(q) ||
+      (b.phone        || '').toLowerCase().includes(q) ||
+      (b.country      || '').toLowerCase().includes(q);
+    const matchS = !status || (b.status || '') === status;
+    return matchQ && matchS;
+  });
+  document.getElementById('allCount').textContent = `${filteredData.length} result${filteredData.length !== 1 ? 's' : ''}`;
+  renderTable('allTbody', filteredData, 9);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════════════════════════════
+async function doSearch() {
+  const q = (document.getElementById('searchQuery').value || '').trim();
+  if (!q) return;
+  document.getElementById('searchTbody').innerHTML = `<tr><td colspan="8"><div class="empty-state"><span class="spin">⟳</span><br>Searching…</div></td></tr>`;
+  document.getElementById('searchCount').textContent = '—';
+  try {
+    const isCode = q.toUpperCase().startsWith('GSS-');
+    let query = _sb.from('bookings').select('*');
+    if (isCode) {
+      query = query.ilike('track_code', q.toUpperCase());
+    } else {
+      query = query.ilike('email', `%${q}%`);
+    }
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+    const results = data || [];
+    document.getElementById('searchCount').textContent = `${results.length} result${results.length !== 1 ? 's' : ''}`;
+    if (results.length === 0) {
+      document.getElementById('searchTbody').innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div>No bookings found for "<strong>${escHtml(q)}</strong>".</div></td></tr>`;
+    } else {
+      renderTable('searchTbody', results, 8);
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById('searchTbody').innerHTML = `<tr><td colspan="8"><div class="empty-state">⚠ Search failed. Try again.</div></td></tr>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER TABLE
+// ═══════════════════════════════════════════════════════════
+function renderTable(tbodyId, rows, cols) {
+  const tbody = document.getElementById(tbodyId);
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="empty-icon">📭</div>No bookings found.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(b => {
+    const date  = b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'2-digit' }) : '—';
+    const status = b.status || 'pending_verification';
+    const badge  = statusBadge(status);
+    const airport = b.airport ? b.airport.split('—')[0].trim() : '—';
+
+    if (cols === 7) { // recent / overview
+      return `<tr>
+        <td><span class="td-code">${escHtml(b.track_code || '—')}</span></td>
+        <td><span class="td-name">${escHtml(b.full_name || '—')}</span></td>
+        <td>${escHtml(b.country || '—')}</td>
+        <td>${badge}</td>
+        <td><span class="td-fee">${escHtml(b.fee || '—')}</span></td>
+        <td><span class="td-date">${date}</span></td>
+        <td><div class="action-row">
+          <button class="act-btn view" onclick='openViewModal(${JSON.stringify(b)})'>✏️ Edit</button>
+          <button class="act-btn del"  onclick='openDelModal("${b.id}","${escHtml(b.track_code||'')}")'>🗑</button>
+        </div></td>
+      </tr>`;
+    } else if (cols === 9) { // all bookings
+      return `<tr>
+        <td><span class="td-code">${escHtml(b.track_code || '—')}</span></td>
+        <td><span class="td-name">${escHtml(b.full_name || '—')}</span></td>
+        <td><span class="td-email">${escHtml(b.email || '—')}</span></td>
+        <td>${escHtml(b.country || '—')}</td>
+        <td style="font-size:0.72rem;color:var(--muted)">${escHtml(airport)}</td>
+        <td>${badge}</td>
+        <td><span class="td-fee">${escHtml(b.fee || '—')}</span></td>
+        <td><span class="td-date">${date}</span></td>
+        <td><div class="action-row">
+          <button class="act-btn view" onclick='openViewModal(${JSON.stringify(b)})'>✏️ Edit</button>
+          <button class="act-btn del"  onclick='openDelModal("${b.id}","${escHtml(b.track_code||'')}")'>🗑</button>
+        </div></td>
+      </tr>`;
+    } else { // search (8 cols)
+      return `<tr>
+        <td><span class="td-code">${escHtml(b.track_code || '—')}</span></td>
+        <td><span class="td-name">${escHtml(b.full_name || '—')}</span></td>
+        <td><span class="td-email">${escHtml(b.email || '—')}</span></td>
+        <td>${escHtml(b.country || '—')}</td>
+        <td>${badge}</td>
+        <td><span class="td-fee">${escHtml(b.fee || '—')}</span></td>
+        <td><span class="td-date">${date}</span></td>
+        <td><div class="action-row">
+          <button class="act-btn view" onclick='openViewModal(${JSON.stringify(b)})'>✏️ Edit</button>
+          <button class="act-btn del"  onclick='openDelModal("${b.id}","${escHtml(b.track_code||'')}")'>🗑</button>
+        </div></td>
+      </tr>`;
+    }
+  }).join('');
+}
+
+function statusBadge(s) {
+  const map = {
+    verified: '✅ Verified',
+    pending_verification: '⏳ Pending',
+    pending: '⏳ Pending',
+    in_transit: '✈️ In Transit',
+    arrived: '🛬 At Airport',
+    delivered: '🎉 Delivered'
+  };
+  const cls = s === 'pending' ? 'pending_verification' : s;
+  return `<span class="badge ${cls}"><span class="badge-dot"></span>${map[s] || s}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VIEW / EDIT MODAL
+// ═══════════════════════════════════════════════════════════
+function openViewModal(b) {
+  currentEditId = b.id;
+  document.getElementById('modalTitle').textContent = b.track_code || 'Booking Details';
+  document.getElementById('modalSub').textContent   = `Booked on ${b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', {month:'long',day:'numeric',year:'numeric'}) : '—'}`;
+  document.getElementById('m-fullName').textContent   = b.full_name     || '—';
+  document.getElementById('m-senderName').textContent = b.sender_name   || '—';
+  document.getElementById('m-phone').textContent      = b.phone         || '—';
+  document.getElementById('m-email').textContent      = b.email         || '—';
+  document.getElementById('m-pkgNum').textContent     = b.package_number|| '—';
+  document.getElementById('m-country').textContent    = b.country       || '—';
+  document.getElementById('m-fee').textContent        = b.fee           || '—';
+  document.getElementById('m-airport').textContent    = b.airport       || '—';
+  document.getElementById('m-address').textContent    = b.address       || '—';
+  document.getElementById('m-statusSelect').value     = b.status || 'pending_verification';
+  document.getElementById('saveSuccess').style.display = 'none';
+  document.getElementById('saveError').style.display   = 'none';
+  openModal('viewModal');
+}
+
+async function saveStatus() {
+  if (!currentEditId) return;
+  const newStatus = document.getElementById('m-statusSelect').value;
+  const btn = document.getElementById('saveStatusBtn');
+  btn.innerHTML = '<span class="spin">⟳</span> &nbsp;Saving…';
+  btn.style.pointerEvents = 'none';
+
+  try {
+    const { error } = await _sb.from('bookings').update({ status: newStatus }).eq('id', currentEditId);
+    if (error) throw error;
+
+    // update local cache
+    const idx = allBookings.findIndex(b => b.id === currentEditId);
+    if (idx !== -1) allBookings[idx].status = newStatus;
+
+    document.getElementById('saveSuccess').style.display = 'block';
+    document.getElementById('saveError').style.display   = 'none';
+    showToast('✅ Status updated successfully!', 'success');
+    setTimeout(() => closeModal('viewModal'), 1400);
+
+    // refresh visible table
+    filterBookings();
+    loadDashboard();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('saveError').style.display   = 'block';
+    document.getElementById('saveSuccess').style.display = 'none';
+    showToast('⚠ Failed to update status.', 'error');
+  } finally {
+    btn.innerHTML = '💾 &nbsp;Save Status';
+    btn.style.pointerEvents = 'all';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DELETE MODAL
+// ═══════════════════════════════════════════════════════════
+function openDelModal(id, code) {
+  currentDelId = id;
+  document.getElementById('delCode').textContent = code;
+  document.getElementById('delError').style.display = 'none';
+  openModal('delModal');
+}
+
+async function confirmDelete() {
+  if (!currentDelId) return;
+  const btn = document.getElementById('confirmDelBtn');
+  btn.innerHTML = '<span class="spin">⟳</span> &nbsp;Deleting…';
+  btn.style.pointerEvents = 'none';
+  try {
+    const { error } = await _sb.from('bookings').delete().eq('id', currentDelId);
+    if (error) throw error;
+    allBookings = allBookings.filter(b => b.id !== currentDelId);
+    closeModal('delModal');
+    showToast('🗑️ Booking deleted.', 'success');
+    filterBookings();
+    loadDashboard();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('delError').style.display = 'block';
+    showToast('⚠ Failed to delete.', 'error');
+  } finally {
+    btn.innerHTML = '🗑️ &nbsp;Delete Permanently';
+    btn.style.pointerEvents = 'all';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-backdrop').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ESC to close modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>
