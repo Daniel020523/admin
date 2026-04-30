@@ -1509,6 +1509,14 @@ document.addEventListener('keydown', e => {
     closeLightbox();
   }
 });
+// Phone back button: close chat screen if open
+window.addEventListener('popstate', function() {
+  const chatScreen = document.getElementById('adminChatScreen');
+  if (chatScreen && chatScreen.classList.contains('open')) {
+    closeChatScreen();
+  }
+});
+
 // ═══════════════════════════════════════════════════════════
 //  MESSAGES — REALTIME
 // ═══════════════════════════════════════════════════════════
@@ -1524,24 +1532,26 @@ let _pollInterval = null;
 function startPollingFallback() {
   if (_pollInterval) clearInterval(_pollInterval);
   _pollInterval = setInterval(async () => {
-    // Silent refresh in background
     try {
       const { data, error } = await _sb
         .from('messages')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      const prev = allMessages.length;
-      allMessages = data || [];
+      const fresh = data || [];
+      const prevIds = new Set(allMessages.map(m => m.id));
+      const newMsgs = fresh.filter(m => !prevIds.has(m.id));
+      // Preserve local read=true so dot doesn't reappear before DB confirms
+      const localReadIds = new Set(allMessages.filter(m => m.read).map(m => m.id));
+      allMessages = fresh.map(m => localReadIds.has(m.id) ? { ...m, read: true } : m);
       updateBadgeAndHeader();
       renderMessages();
-      // If new messages arrived while realtime was down, flash
-      if (allMessages.length > prev) {
+      if (newMsgs.length > 0) {
         flashFab();
         showToast('💬 New message received!', 'success');
       }
     } catch (_) { /* silent */ }
-  }, 15000); // every 15 seconds
+  }, 15000);
 }
 
 // ── Supabase Realtime subscription ──────────────────────────
@@ -1812,6 +1822,8 @@ function openChatScreen(msgId) {
   // Open screen
   document.getElementById('adminChatScreen').classList.add('open');
   document.getElementById('csInput').focus();
+  // Push a history entry so the phone's back button can close this screen
+  history.pushState({ chatOpen: true }, '');
 
   // Mark every unread message in THIS user's group as read (only this user's)
   const unreadInGroup = userMsgs.filter(x => !x.read);
