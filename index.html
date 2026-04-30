@@ -550,6 +550,161 @@
   .reply-textarea:focus { border-color: var(--indigo-bright); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
   .reply-textarea::placeholder { color: var(--muted2); }
 
+  /* ── Admin Chat Screen (full-screen overlay) ── */
+  .chat-screen {
+    position: fixed; inset: 0; z-index: 500;
+    background: var(--bg);
+    display: none; flex-direction: column;
+    font-family: 'Outfit', sans-serif;
+  }
+  .chat-screen.open { display: flex; }
+
+  /* Chat Screen Header */
+  .cs-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    background: rgba(5,8,22,0.92);
+    flex-shrink: 0; z-index: 2;
+  }
+  .cs-back-btn {
+    display: flex; align-items: center; gap: 0.4rem;
+    color: var(--muted); font-size: 0.8rem; font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border2); border-radius: 8px;
+    background: var(--indigo-dim); cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    font-family: 'Outfit', sans-serif;
+  }
+  .cs-back-btn:hover { color: var(--indigo-light); border-color: var(--indigo-bright); }
+  .cs-user-info { flex: 1; display: flex; align-items: center; gap: 0.65rem; }
+  .cs-avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 800; color: #fff;
+    border: 2px solid rgba(99,102,241,0.3);
+  }
+  .cs-name { font-size: 0.92rem; font-weight: 800; color: #fff; }
+  .cs-track {
+    font-size: 0.65rem; color: var(--indigo-light);
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px;
+    margin-top: 1px;
+  }
+  .cs-pkg-btn {
+    padding: 0.35rem 0.8rem; border-radius: 8px;
+    background: var(--indigo-dim); border: 1px solid var(--border2);
+    color: var(--indigo-light); font-size: 0.72rem; font-weight: 700;
+    cursor: pointer; font-family: 'Outfit', sans-serif;
+    transition: all 0.18s; white-space: nowrap;
+  }
+  .cs-pkg-btn:hover { background: rgba(99,102,241,0.2); }
+
+  /* Chat messages area */
+  .cs-messages {
+    flex: 1; overflow-y: auto;
+    padding: 1.25rem 1.25rem 0.5rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    scroll-behavior: smooth;
+    background: var(--bg);
+    position: relative; z-index: 1;
+  }
+  .cs-messages::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(99,102,241,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 50% at 80% 100%, rgba(99,102,241,0.05) 0%, transparent 60%);
+  }
+  .cs-messages::-webkit-scrollbar { width: 4px; }
+  .cs-messages::-webkit-scrollbar-track { background: transparent; }
+  .cs-messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  /* Bubbles */
+  .cs-bubble-row {
+    display: flex; align-items: flex-end; gap: 0.5rem;
+    animation: csBubbleIn 0.28s cubic-bezier(0.16,1,0.3,1) both;
+    position: relative; z-index: 1;
+  }
+  @keyframes csBubbleIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .cs-bubble-row.user-side { flex-direction: row-reverse; }
+  .cs-bubble-row.admin-side { flex-direction: row; }
+
+  .cs-bav {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 800; color: #fff;
+  }
+  .cs-bav.user-av { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+  .cs-bav.admin-av { background: linear-gradient(135deg, #34d399, #059669); }
+
+  .cs-bubble {
+    max-width: 68%; padding: 0.7rem 1rem;
+    border-radius: 16px; font-size: 0.875rem;
+    line-height: 1.55; word-break: break-word;
+  }
+  .cs-bubble-row.user-side .cs-bubble {
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #fff; border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+  }
+  .cs-bubble-row.admin-side .cs-bubble {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .cs-time {
+    font-size: 0.6rem; margin-top: 0.3rem; display: block;
+    color: rgba(255,255,255,0.45);
+    text-align: right;
+  }
+  .cs-bubble-row.admin-side .cs-time { color: var(--muted2); text-align: left; }
+
+  .cs-sys-msg {
+    text-align: center; font-size: 0.7rem; color: var(--muted2);
+    padding: 0.3rem 0.75rem; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 20px;
+    align-self: center; max-width: 80%; position: relative; z-index: 1;
+  }
+
+  /* Chat bubble image */
+  .cs-bubble-img {
+    max-width: 100%; max-height: 200px; border-radius: 8px;
+    display: block; margin-bottom: 0.25rem;
+    cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* Input bar */
+  .cs-input-bar {
+    display: flex; align-items: flex-end; gap: 0.65rem;
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: rgba(5,8,22,0.9);
+    backdrop-filter: blur(12px);
+    flex-shrink: 0; z-index: 2;
+  }
+  .cs-textarea {
+    flex: 1; background: var(--surface2); border: 1.5px solid var(--border2);
+    border-radius: 12px; padding: 0.7rem 1rem;
+    color: #fff; font-family: 'Outfit', sans-serif; font-size: 0.875rem;
+    outline: none; resize: none; min-height: 44px; max-height: 120px;
+    line-height: 1.5; overflow-y: auto;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .cs-textarea:focus { border-color: var(--indigo-bright); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+  .cs-textarea::placeholder { color: var(--muted2); }
+  .cs-send-btn {
+    width: 44px; height: 44px; flex-shrink: 0;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    border: none; border-radius: 12px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 4px 16px rgba(99,102,241,0.45);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .cs-send-btn:hover { transform: scale(1.08); box-shadow: 0 6px 22px rgba(99,102,241,0.6); }
+  .cs-send-btn:active { transform: scale(0.96); }
+  .cs-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
   /* ── Image in chat bubbles / reply modal ── */
   .chat-bubble-img {
     max-width: 100%; max-height: 200px;
@@ -881,6 +1036,50 @@
   </div>
   <div class="msg-list" id="msgList">
     <div class="msg-loading"><span class="spin">⟳</span> &nbsp;Loading messages…</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     ADMIN CHAT SCREEN
+════════════════════════════════════════ -->
+<div class="chat-screen" id="adminChatScreen">
+  <div class="bg-fx" style="position:absolute;z-index:0"></div>
+  <div class="grid-fx" style="position:absolute;z-index:0"></div>
+
+  <!-- Header -->
+  <div class="cs-header">
+    <button class="cs-back-btn" onclick="closeChatScreen()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+        <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+    <div class="cs-user-info">
+      <div class="cs-avatar" id="csAvatar">?</div>
+      <div>
+        <div class="cs-name" id="csName">—</div>
+        <div class="cs-track" id="csTrack"></div>
+      </div>
+    </div>
+    <button class="cs-pkg-btn" id="csPkgBtn" onclick="csGoToPackage()" style="display:none">📦 View Package</button>
+    <button onclick="closeChatScreen()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1;margin-left:0.5rem">✕</button>
+  </div>
+
+  <!-- Messages -->
+  <div class="cs-messages" id="csMessages">
+    <div class="cs-sys-msg" id="csLoading">⟳ Loading chat…</div>
+  </div>
+
+  <!-- Input -->
+  <div class="cs-input-bar">
+    <textarea class="cs-textarea" id="csInput" rows="1" placeholder="Type your reply…"
+      onkeydown="csHandleKey(event)" oninput="csAutoResize(this)"></textarea>
+    <button class="cs-send-btn" id="csSendBtn" onclick="csSendReply()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+        <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -1523,123 +1722,252 @@ function formatMsgTime(date) {
   return date.toLocaleDateString('en-US', { month:'short', day:'numeric' });
 }
 
-async function openReplyModal(msgId) {
+// ═══════════════════════════════════════════════════════════
+//  ADMIN CHAT SCREEN
+// ═══════════════════════════════════════════════════════════
+let csCurrentMsgId = null;     // The message row currently open in chat
+let csCurrentUser  = null;     // Cache of the user's message data
+let csChannel      = null;     // Realtime subscription for this user
+
+function openChatScreen(msgId) {
   const m = allMessages.find(x => x.id === msgId);
   if (!m) return;
+  csCurrentMsgId = msgId;
+  csCurrentUser  = m;
 
-  currentReplyId = msgId;
+  // Header info
+  const name     = m.name || m.full_name || 'Unknown';
+  const initials = name.slice(0, 2).toUpperCase();
+  document.getElementById('csAvatar').textContent = initials;
+  document.getElementById('csName').textContent   = name;
+  document.getElementById('csTrack').textContent  = m.track_code ? ('📦 ' + m.track_code) : (m.email || '');
 
-  // Show back button only when the message has a linked track code
-  const backBtn = document.getElementById('replyBackBtn');
-  if (backBtn) {
-    backBtn.style.display = m.track_code ? 'inline-flex' : 'none';
-  }
+  const pkgBtn = document.getElementById('csPkgBtn');
+  pkgBtn.style.display = m.track_code ? 'inline-flex' : 'none';
 
-  document.getElementById('replyModalSub').textContent =
-    `From ${m.name || m.full_name || 'Unknown'} · ${m.created_at ? new Date(m.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'}`;
+  // Clear & render bubbles
+  const area = document.getElementById('csMessages');
+  area.innerHTML = '';
+  csAppendSysMsg('Conversation with ' + escHtml(name));
 
-  document.getElementById('replyMeta').innerHTML = `
-    <div class="reply-meta-row"><span class="reply-meta-label">Name</span><span class="reply-meta-val">${escHtml(m.name || m.full_name || '—')}</span></div>
-    <div class="reply-meta-row"><span class="reply-meta-label">Email</span><span class="reply-meta-val">${escHtml(m.email || '—')}</span></div>
-    ${m.track_code ? `<div class="reply-meta-row"><span class="reply-meta-label">Track</span><span class="reply-meta-val" style="font-family:'JetBrains Mono',monospace;color:var(--indigo-light)">${escHtml(m.track_code)}</span></div>` : ''}
-    ${m.phone ? `<div class="reply-meta-row"><span class="reply-meta-label">Phone</span><span class="reply-meta-val">${escHtml(m.phone)}</span></div>` : ''}
-  `;
+  // Render all messages for this user (group by track_code or by sender)
+  // Show the user message + any reply
+  const userMsgs = allMessages.filter(x =>
+    (m.track_code && x.track_code === m.track_code) ||
+    (!m.track_code && (x.name === m.name || x.email === m.email))
+  ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-  const msgContent = m.message || '—';
-  const isImagePath = msgContent.startsWith('[image-path]');
-  const isImageLegacy = msgContent.startsWith('[image]');
-  if (isImagePath) {
-    // Private bucket — create a signed URL (valid 1 hour) that only this admin session uses
-    const storagePath = msgContent.slice(12);
-    document.getElementById('replyMsgBody').innerHTML =
-      `<span style="font-size:0.72rem;color:var(--muted)">📷 Loading secure photo…</span>`;
-    try {
-      const { data: signedData, error: signErr } = await _sb
-        .storage
-        .from('chat-images')
-        .createSignedUrl(storagePath, 3600); // 1 hour
-      if (signErr || !signedData?.signedUrl) throw signErr || new Error('No signed URL');
-      document.getElementById('replyMsgBody').innerHTML =
-        `<img class="chat-bubble-img" src="${signedData.signedUrl.replace(/"/g,'&quot;')}" alt="Photo" onclick="openLightbox(this.src)" loading="lazy" /><br><span style="font-size:0.72rem;color:var(--muted)">📷 User sent a photo (secure link · expires 1 hr)</span>`;
-    } catch (e) {
-      document.getElementById('replyMsgBody').innerHTML =
-        `<span style="color:var(--danger);font-size:0.8rem">⚠ Could not load photo. Ensure the bucket policy allows admin createSignedUrl.</span>`;
-    }
-  } else if (isImageLegacy) {
-    // Legacy public-URL messages (before policy change) — still render but note it
-    const imgUrl = msgContent.slice(7);
-    document.getElementById('replyMsgBody').innerHTML =
-      `<img class="chat-bubble-img" src="${imgUrl.replace(/"/g,'&quot;')}" alt="Photo" onclick="openLightbox(this.src)" loading="lazy" /><br><span style="font-size:0.72rem;color:var(--muted)">📷 Legacy public photo</span>`;
-  } else {
-    document.getElementById('replyMsgBody').textContent = msgContent;
-  }
-  document.getElementById('replyTextarea').value = m.reply || '';
-  document.getElementById('replySuccess').style.display = 'none';
-  document.getElementById('replyError').style.display   = 'none';
+  userMsgs.forEach(row => {
+    csRenderUserBubble(row);
+    if (row.reply) csRenderAdminBubble(row);
+  });
+
+  document.getElementById('csInput').value = '';
+  csScrollBottom();
+
+  // Open screen
+  document.getElementById('adminChatScreen').classList.add('open');
+  document.getElementById('csInput').focus();
 
   // Mark as read
   if (!m.read) {
-    await _sb.from('messages').update({ read: true }).eq('id', msgId);
+    _sb.from('messages').update({ read: true }).eq('id', msgId);
     m.read = true;
     renderMessages();
-    loadMessages();
   }
 
-  openModal('replyModal');
+  // Subscribe to realtime updates for this user's track_code
+  csSubscribe(m.track_code || m.name);
 }
 
-function goBackToBooking() {
-  const m = allMessages.find(x => x.id === currentReplyId);
-  if (!m || !m.track_code) return;
-  const booking = allBookings.find(b => b.track_code === m.track_code);
-  if (!booking) {
-    showToast('⚠ Could not find linked booking.', 'error');
-    return;
-  }
-  closeModal('replyModal');
+function closeChatScreen() {
+  document.getElementById('adminChatScreen').classList.remove('open');
+  if (csChannel) { _sb.removeChannel(csChannel); csChannel = null; }
+  renderMessages();
+  loadMessages();
+}
+
+function csGoToPackage() {
+  if (!csCurrentUser || !csCurrentUser.track_code) return;
+  const booking = allBookings.find(b => b.track_code === csCurrentUser.track_code);
+  if (!booking) { showToast('⚠ Could not find linked booking.', 'error'); return; }
+  closeChatScreen();
   openViewModal(booking);
 }
 
-async function sendReply() {
-  if (!currentReplyId) return;
-  const replyText = document.getElementById('replyTextarea').value.trim();
-  if (!replyText) {
-    showToast('⚠ Please type a reply first.', 'error');
-    return;
+function csSubscribe(trackCode) {
+  if (csChannel) _sb.removeChannel(csChannel);
+  if (!trackCode) return;
+
+  csChannel = _sb
+    .channel('admin-chat-' + trackCode)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'messages',
+      filter: `track_code=eq.${trackCode}`
+    }, (payload) => {
+      if (!payload.new) return;
+      // Update local cache
+      const idx = allMessages.findIndex(x => x.id === payload.new.id);
+      if (idx !== -1) allMessages[idx] = payload.new;
+      else allMessages.push(payload.new);
+      // Re-render that reply bubble if it changed
+      const existingReply = document.querySelector(`[data-cs-reply-for="${payload.new.id}"]`);
+      if (payload.new.reply && !existingReply) {
+        csRenderAdminBubble(payload.new);
+        csScrollBottom();
+      }
+    })
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `track_code=eq.${trackCode}`
+    }, (payload) => {
+      if (!payload.new) return;
+      allMessages.push(payload.new);
+      // Only render if it's a new user message (not from admin — admin inserts don't exist here)
+      const existing = document.querySelector(`[data-cs-msg-id="${payload.new.id}"]`);
+      if (!existing) {
+        csRenderUserBubble(payload.new);
+        csScrollBottom();
+        csAppendSysMsg('New message from user');
+      }
+    })
+    .subscribe();
+}
+
+function csRenderUserBubble(row) {
+  const area     = document.getElementById('csMessages');
+  const name     = row.name || row.full_name || 'User';
+  const initials = name.slice(0, 1).toUpperCase();
+  const timeStr  = csFmtTime(row.created_at);
+  const content  = row.message || '';
+  const isImg    = content.startsWith('[image-path]') || content.startsWith('[image]');
+
+  let bodyHtml;
+  if (isImg) {
+    bodyHtml = `<div style="display:flex;align-items:center;gap:0.5rem;color:rgba(255,255,255,0.75);font-size:0.8rem"><span>📷</span><span>Photo — click to load in message details</span></div>`;
+  } else {
+    bodyHtml = escHtml(content);
   }
 
-  const btn = document.getElementById('sendReplyBtn');
-  btn.innerHTML = '<span class="spin">⟳</span> &nbsp;Saving…';
-  btn.style.pointerEvents = 'none';
+  const el = document.createElement('div');
+  el.className = 'cs-bubble-row user-side';
+  el.dataset.csMsgId = row.id;
+  el.innerHTML = `
+    <div class="cs-bav user-av">${initials}</div>
+    <div class="cs-bubble">${bodyHtml}<span class="cs-time">${timeStr}</span></div>`;
+  area.appendChild(el);
+}
+
+function csRenderAdminBubble(row) {
+  const area    = document.getElementById('csMessages');
+  const timeStr = csFmtTime(row.replied_at || row.created_at);
+  const el      = document.createElement('div');
+  el.className  = 'cs-bubble-row admin-side';
+  el.dataset.csReplyFor = row.id;
+  el.innerHTML  = `
+    <div class="cs-bav admin-av">A</div>
+    <div class="cs-bubble">${escHtml(row.reply)}<span class="cs-time">${timeStr}</span></div>`;
+  area.appendChild(el);
+}
+
+function csAppendSysMsg(text) {
+  const area = document.getElementById('csMessages');
+  const el   = document.createElement('div');
+  el.className   = 'cs-sys-msg';
+  el.textContent = text;
+  area.appendChild(el);
+}
+
+function csScrollBottom() {
+  const area = document.getElementById('csMessages');
+  setTimeout(() => { area.scrollTop = area.scrollHeight; }, 50);
+}
+
+function csFmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function csHandleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); csSendReply(); }
+}
+
+function csAutoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+async function csSendReply() {
+  if (!csCurrentMsgId) return;
+  const text = document.getElementById('csInput').value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('csSendBtn');
+  btn.disabled = true;
+  document.getElementById('csInput').value = '';
+  document.getElementById('csInput').style.height = '';
+
+  // Optimistic UI — show admin bubble immediately
+  const optimisticRow = {
+    id: csCurrentMsgId,
+    reply: text,
+    replied_at: new Date().toISOString()
+  };
+  // Remove any old reply bubble for this message and re-add
+  const oldReply = document.querySelector(`[data-cs-reply-for="${csCurrentMsgId}"]`);
+  if (oldReply) oldReply.remove();
+  csRenderAdminBubble(optimisticRow);
+  csScrollBottom();
 
   try {
     const { error } = await _sb
       .from('messages')
-      .update({ reply: replyText, replied_at: new Date().toISOString(), read: true })
-      .eq('id', currentReplyId);
+      .update({ reply: text, replied_at: new Date().toISOString(), read: true })
+      .eq('id', csCurrentMsgId);
 
     if (error) throw error;
 
-    // Update local cache
-    const m = allMessages.find(x => x.id === currentReplyId);
-    if (m) { m.reply = replyText; m.read = true; }
+    const m = allMessages.find(x => x.id === csCurrentMsgId);
+    if (m) { m.reply = text; m.read = true; }
 
-    document.getElementById('replySuccess').style.display = 'block';
-    document.getElementById('replyError').style.display   = 'none';
     showToast('✅ Reply sent!', 'success');
     renderMessages();
-    loadMessages();
-    setTimeout(() => closeModal('replyModal'), 1400);
+
+    // If there are more messages from same user, also update csCurrentMsgId to the latest
+    // so subsequent replies go to most recent message
+    const userMsgs = allMessages.filter(x =>
+      (csCurrentUser.track_code && x.track_code === csCurrentUser.track_code) ||
+      (!csCurrentUser.track_code && x.name === csCurrentUser.name)
+    ).filter(x => !x.reply);
+
+    if (userMsgs.length > 0) {
+      csCurrentMsgId = userMsgs[userMsgs.length - 1].id;
+    }
   } catch (err) {
     console.error(err);
-    document.getElementById('replyError').style.display   = 'block';
-    document.getElementById('replySuccess').style.display = 'none';
+    // Remove optimistic bubble on failure
+    const failedReply = document.querySelector(`[data-cs-reply-for="${csCurrentMsgId}"]`);
+    if (failedReply) failedReply.remove();
+    csAppendSysMsg('⚠ Failed to send reply. Please try again.');
     showToast('⚠ Failed to save reply.', 'error');
+    document.getElementById('csInput').value = text; // restore text
   } finally {
-    btn.innerHTML = '✉️ &nbsp;Send Reply';
-    btn.style.pointerEvents = 'all';
+    btn.disabled = false;
+    document.getElementById('csInput').focus();
   }
 }
+
+// Keep legacy openReplyModal as alias for chat screen
+function openReplyModal(msgId) {
+  openChatScreen(msgId);
+}
+
+
 
 </script>
 </body>
