@@ -1786,67 +1786,88 @@ function formatMsgTime(date) {
 // ═══════════════════════════════════════════════════════════
 //  ADMIN CHAT SCREEN
 // ═══════════════════════════════════════════════════════════
-let csCurrentMsgId = null;     // The message row currently open in chat
-let csCurrentUser  = null;     // Cache of the user's message data
-let csChannel      = null;     // Realtime subscription for this user
+let csCurrentMsgId  = null;   // message row ID targeted for replies
+let csCurrentUser   = null;   // the message object the chat was opened from
+let csChannel       = null;   // realtime subscription for current conversation
+let _csRendering    = false;  // guard against re-entrant renders
 
-function openChatScreen(msgId) {
-  const m = allMessages.find(x => x.id === msgId);
-  if (!m) return;
-  csCurrentMsgId = msgId;
-  csCurrentUser  = m;
-
-  // Header info
-  const name     = m.name || m.full_name || 'Unknown';
-  const initials = name.slice(0, 2).toUpperCase();
-  document.getElementById('csAvatar').textContent = initials;
-  document.getElementById('csName').textContent   = name;
-  document.getElementById('csTrack').textContent  = m.track_code ? ('📦 ' + m.track_code) : (m.email || '');
-
-  const pkgBtn = document.getElementById('csPkgBtn');
-  pkgBtn.style.display = m.track_code ? 'inline-flex' : 'none';
-
-  // Clear & render bubbles
+// Fully rebuild the chat area from allMessages — always clean & ordered
+function csRebuildChat() {
+  if (_csRendering) return;
+  _csRendering = true;
   const area = document.getElementById('csMessages');
-  area.innerHTML = '';
-  csAppendSysMsg('Conversation with ' + escHtml(name));
+  if (!area || !csCurrentUser) { _csRendering = false; return; }
 
-  // Render all messages for this user (group by track_code or by sender)
-  // Show the user message + any reply
+  const m = csCurrentUser;
   const userMsgs = allMessages.filter(x =>
     (m.track_code && x.track_code === m.track_code) ||
     (!m.track_code && (x.name === m.name || x.email === m.email))
   ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  area.innerHTML = '';
+  const name = m.name || m.full_name || 'Unknown';
+  csAppendSysMsg('Conversation with ' + escHtml(name));
 
   userMsgs.forEach(row => {
     csRenderUserBubble(row);
     if (row.reply) csRenderAdminBubble(row);
   });
 
-  document.getElementById('csInput').value = '';
-  csScrollBottom();
+  // Keep csCurrentMsgId pointing to the latest unreplied message
+  const unreplied = userMsgs.filter(x => !x.reply);
+  csCurrentMsgId = unreplied.length > 0
+    ? unreplied[unreplied.length - 1].id
+    : userMsgs.length > 0 ? userMsgs[userMsgs.length - 1].id : null;
 
-  // Open screen
+  _csRendering = false;
+  csScrollBottom();
+}
+
+function openChatScreen(msgId) {
+  const m = allMessages.find(x => x.id === msgId);
+  if (!m) return;
+  csCurrentUser = m;
+
+  // Tear down stale sub before anything else
+  if (csChannel) { try { _sb.removeChannel(csChannel); } catch(_){} csChannel = null; }
+
+  // Header
+  const name     = m.name || m.full_name || 'Unknown';
+  const initials = name.slice(0, 2).toUpperCase();
+  document.getElementById('csAvatar').textContent = initials;
+  document.getElementById('csName').textContent   = name;
+  document.getElementById('csTrack').textContent  = m.track_code ? ('\u{1F4E6} ' + m.track_code) : (m.email || '');
+  document.getElementById('csPkgBtn').style.display = m.track_code ? 'inline-flex' : 'none';
+
+  // Build chat cleanly
+  csRebuildChat();
+
+  document.getElementById('csInput').value = '';
   document.getElementById('adminChatScreen').classList.add('open');
   document.getElementById('csInput').focus();
+  history.pushState({ chatOpen: true }, '');
 
-  // Mark every unread message in THIS user's group as read (only this user's)
+  // Mark all unread in this group as read
+  const userMsgs = allMessages.filter(x =>
+    (m.track_code && x.track_code === m.track_code) ||
+    (!m.track_code && (x.name === m.name || x.email === m.email))
+  );
   const unreadInGroup = userMsgs.filter(x => !x.read);
   if (unreadInGroup.length > 0) {
-    unreadInGroup.forEach(x => {
-      _sb.from('messages').update({ read: true }).eq('id', x.id);
-      x.read = true;  // update local cache only for this user's messages
-    });
-    renderMessages(); // re-render so only this user's dot disappears
+    unreadInGroup.forEach(x => { _sb.from('messages').update({ read: true }).eq('id', x.id); x.read = true; });
+    updateBadgeAndHeader();
+    renderMessages();
   }
 
-  // Subscribe to realtime updates for this user's track_code
-  csSubscribe(m.track_code || m.name);
+  csSubscribe(m.track_code, m.name);
 }
 
 function closeChatScreen() {
+  // Remove sub first so no stale events fire during teardown
+  if (csChannel) { try { _sb.removeChannel(csChannel); } catch(_){} csChannel = null; }
   document.getElementById('adminChatScreen').classList.remove('open');
-  if (csChannel) { _sb.removeChannel(csChannel); csChannel = null; }
+  csCurrentMsgId = null;
+  csCurrentUser  = null;
   renderMessages();
   loadMessages();
 }
@@ -1854,50 +1875,50 @@ function closeChatScreen() {
 function csGoToPackage() {
   if (!csCurrentUser || !csCurrentUser.track_code) return;
   const booking = allBookings.find(b => b.track_code === csCurrentUser.track_code);
-  if (!booking) { showToast('⚠ Could not find linked booking.', 'error'); return; }
+  if (!booking) { showToast('\u26a0 Could not find linked booking.', 'error'); return; }
   closeChatScreen();
   openViewModal(booking);
 }
 
-function csSubscribe(trackCode) {
-  if (csChannel) _sb.removeChannel(csChannel);
-  if (!trackCode) return;
+function csSubscribe(trackCode, fallbackName) {
+  if (csChannel) { try { _sb.removeChannel(csChannel); } catch(_){} }
+  if (!trackCode && !fallbackName) return;
+
+  // Unique channel name prevents stale subs from a previous openChatScreen from firing
+  const channelKey = 'admin-chat-' + (trackCode || fallbackName) + '-' + Date.now();
 
   csChannel = _sb
-    .channel('admin-chat-' + trackCode)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'messages',
-      filter: `track_code=eq.${trackCode}`
+    .channel(channelKey)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages',
+      filter: trackCode ? `track_code=eq.${trackCode}` : undefined
     }, (payload) => {
-      if (!payload.new) return;
-      // Update local cache
+      if (!payload.new || !csCurrentUser) return;
+      const belongs = trackCode
+        ? payload.new.track_code === trackCode
+        : (payload.new.name === fallbackName || payload.new.email === fallbackName);
+      if (!belongs) return;
+
       const idx = allMessages.findIndex(x => x.id === payload.new.id);
       if (idx !== -1) allMessages[idx] = payload.new;
       else allMessages.push(payload.new);
-      // Re-render that reply bubble if it changed
-      const existingReply = document.querySelector(`[data-cs-reply-for="${payload.new.id}"]`);
-      if (payload.new.reply && !existingReply) {
-        csRenderAdminBubble(payload.new);
-        csScrollBottom();
+
+      // Add reply bubble only if not already in DOM (avoids dupe from optimistic UI)
+      if (payload.new.reply) {
+        const existing = document.querySelector(`[data-cs-reply-for="${payload.new.id}"]`);
+        if (!existing) { csRenderAdminBubble(payload.new); csScrollBottom(); }
       }
     })
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages',
-      filter: `track_code=eq.${trackCode}`
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages',
+      filter: trackCode ? `track_code=eq.${trackCode}` : undefined
     }, (payload) => {
-      if (!payload.new) return;
-      allMessages.push(payload.new);
-      // Only render if it's a new user message (not from admin — admin inserts don't exist here)
+      if (!payload.new || !csCurrentUser) return;
+      const belongs = trackCode
+        ? payload.new.track_code === trackCode
+        : (payload.new.name === fallbackName || payload.new.email === fallbackName);
+      if (!belongs) return;
+      if (!allMessages.find(x => x.id === payload.new.id)) allMessages.push(payload.new);
       const existing = document.querySelector(`[data-cs-msg-id="${payload.new.id}"]`);
-      if (!existing) {
-        csRenderUserBubble(payload.new);
-        csScrollBottom();
-        csAppendSysMsg('New message from user');
-      }
+      if (!existing) { csRenderUserBubble(payload.new); csScrollBottom(); csAppendSysMsg('New message from user'); }
     })
     .subscribe();
 }
@@ -1971,55 +1992,54 @@ async function csSendReply() {
   const text = document.getElementById('csInput').value.trim();
   if (!text) return;
 
+  // Snapshot the target ID now — don't let it shift mid-async
+  const targetId = csCurrentMsgId;
+
   const btn = document.getElementById('csSendBtn');
   btn.disabled = true;
   document.getElementById('csInput').value = '';
   document.getElementById('csInput').style.height = '';
 
-  // Optimistic UI — show admin bubble immediately
-  const optimisticRow = {
-    id: csCurrentMsgId,
-    reply: text,
-    replied_at: new Date().toISOString()
-  };
-  // Remove any old reply bubble for this message and re-add
-  const oldReply = document.querySelector(`[data-cs-reply-for="${csCurrentMsgId}"]`);
+  // Optimistic UI — add reply bubble immediately, tagged with targetId
+  // Remove any existing optimistic bubble for this row first to avoid dupes
+  const oldReply = document.querySelector(`[data-cs-reply-for="${targetId}"]`);
   if (oldReply) oldReply.remove();
-  csRenderAdminBubble(optimisticRow);
+  csRenderAdminBubble({ id: targetId, reply: text, replied_at: new Date().toISOString() });
   csScrollBottom();
 
   try {
+    const repliedAt = new Date().toISOString();
     const { error } = await _sb
       .from('messages')
-      .update({ reply: text, replied_at: new Date().toISOString(), read: true })
-      .eq('id', csCurrentMsgId);
+      .update({ reply: text, replied_at: repliedAt, read: true })
+      .eq('id', targetId);
 
     if (error) throw error;
 
-    const m = allMessages.find(x => x.id === csCurrentMsgId);
-    if (m) { m.reply = text; m.read = true; }
+    // Update local cache for this row
+    const m = allMessages.find(x => x.id === targetId);
+    if (m) { m.reply = text; m.replied_at = repliedAt; m.read = true; }
 
-    showToast('✅ Reply sent!', 'success');
+    showToast('\u2705 Reply sent!', 'success');
     renderMessages();
 
-    // If there are more messages from same user, also update csCurrentMsgId to the latest
-    // so subsequent replies go to most recent message
-    const userMsgs = allMessages.filter(x =>
-      (csCurrentUser.track_code && x.track_code === csCurrentUser.track_code) ||
-      (!csCurrentUser.track_code && x.name === csCurrentUser.name)
-    ).filter(x => !x.reply);
-
-    if (userMsgs.length > 0) {
-      csCurrentMsgId = userMsgs[userMsgs.length - 1].id;
+    // Advance csCurrentMsgId to the next unreplied message in this conversation
+    // so the admin can continue replying without reopening
+    if (csCurrentUser) {
+      const remaining = allMessages.filter(x =>
+        ((csCurrentUser.track_code && x.track_code === csCurrentUser.track_code) ||
+         (!csCurrentUser.track_code && x.name === csCurrentUser.name)) && !x.reply
+      );
+      if (remaining.length > 0) csCurrentMsgId = remaining[remaining.length - 1].id;
     }
   } catch (err) {
     console.error(err);
-    // Remove optimistic bubble on failure
-    const failedReply = document.querySelector(`[data-cs-reply-for="${csCurrentMsgId}"]`);
+    // Roll back optimistic bubble on failure
+    const failedReply = document.querySelector(`[data-cs-reply-for="${targetId}"]`);
     if (failedReply) failedReply.remove();
-    csAppendSysMsg('⚠ Failed to send reply. Please try again.');
-    showToast('⚠ Failed to save reply.', 'error');
-    document.getElementById('csInput').value = text; // restore text
+    csAppendSysMsg('\u26a0 Failed to send reply. Please try again.');
+    showToast('\u26a0 Failed to save reply.', 'error');
+    document.getElementById('csInput').value = text;
   } finally {
     btn.disabled = false;
     document.getElementById('csInput').focus();
