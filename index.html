@@ -515,6 +515,23 @@
   .msg-item-time { font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
   .msg-item-track { font-size: 0.65rem; color: var(--indigo-light); font-family: 'JetBrains Mono', monospace; margin-bottom: 0.3rem; }
   .msg-item-preview { font-size: 0.76rem; color: var(--muted); line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .msg-item-typing {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.72rem; color: var(--indigo-light); font-style: italic;
+  }
+  .msg-item-typing-dots { display: inline-flex; gap: 3px; align-items: center; margin-left: 2px; }
+  .msg-item-typing-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--indigo-bright);
+    animation: typingBounce 1.2s ease-in-out infinite;
+    display: inline-block;
+  }
+  .msg-item-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .msg-item-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+    30%          { transform: translateY(-4px); opacity: 1; }
+  }
   .msg-unread-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--indigo-bright); flex-shrink: 0; margin-left: auto;
@@ -1208,6 +1225,7 @@ let allBookings   = [];
 let filteredData  = [];
 let currentEditId = null;
 let currentDelId  = null;
+const typingUsers = new Map(); // track_code → timeout id (for message list typing dots)
 
 // ═══════════════════════════════════════════════════════════
 //  LOGIN
@@ -1630,7 +1648,7 @@ function subscribeMessages() {
   if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
 
   _realtimeChannel = _sb
-    .channel('messages-realtime-' + Date.now()) // unique channel name to avoid conflicts
+    .channel('messages-realtime-global') // stable name so user's global typing channel joins the same room
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'messages' },
@@ -1655,6 +1673,23 @@ function subscribeMessages() {
         renderMessages();
       }
     )
+    // Global typing events from all users — broadcast on stable channel name
+    .on('broadcast', { event: 'user_typing_start' }, (payload) => {
+      const tc = payload.payload && payload.payload.track_code;
+      if (!tc) return;
+      if (typingUsers.has(tc)) clearTimeout(typingUsers.get(tc));
+      // Auto-clear typing state after 3s in case stop event is missed
+      const tid = setTimeout(() => { typingUsers.delete(tc); renderMessages(); }, 3000);
+      typingUsers.set(tc, tid);
+      renderMessages();
+    })
+    .on('broadcast', { event: 'user_typing_stop' }, (payload) => {
+      const tc = payload.payload && payload.payload.track_code;
+      if (!tc) return;
+      if (typingUsers.has(tc)) clearTimeout(typingUsers.get(tc));
+      typingUsers.delete(tc);
+      renderMessages();
+    })
     .subscribe((status) => {
       const dot = document.getElementById('realtimeDot');
       if (!dot) return;
@@ -1779,12 +1814,20 @@ function renderMessages() {
     // Show admin's reply as preview if they sent last, otherwise show user's message
     const lastReply = m.reply || '';
     const adminSentLast = !!lastReply;
-    const isImage  = !adminSentLast && ((m.message || '').startsWith('[image]') || (m.message || '').startsWith('[image-path]'));
-    const preview  = adminSentLast
-      ? `<span style="color:var(--indigo-light);font-size:0.72rem;font-weight:600">You: </span>${escHtml(lastReply.substring(0, 100))}`
-      : isImage
-        ? `<span class="msg-item-preview-img">📷 Photo</span>`
-        : escHtml((m.message || '').substring(0, 120));
+    const isAdminImg = adminSentLast && lastReply.startsWith('[admin-image]');
+    const isUserImg  = !adminSentLast && ((m.message || '').startsWith('[image]') || (m.message || '').startsWith('[image-path]'));
+    const isAdminSentRow = (m.message || '') === '[admin-sent]';
+    const isTyping = m.track_code && typingUsers.has(m.track_code);
+    const typingHtml = `<span class="msg-item-typing">typing<span class="msg-item-typing-dots"><span></span><span></span><span></span></span></span>`;
+    const preview  = isTyping
+      ? typingHtml
+      : isAdminImg
+      ? `<span style="color:var(--indigo-light);font-size:0.72rem;font-weight:600">You: </span><span class="msg-item-preview-img">📷 Photo</span>`
+      : adminSentLast && !isAdminSentRow
+        ? `<span style="color:var(--indigo-light);font-size:0.72rem;font-weight:600">You: </span>${escHtml(lastReply.substring(0, 100))}`
+        : isUserImg || isAdminSentRow
+          ? `<span class="msg-item-preview-img">📷 Photo</span>`
+          : escHtml((m.message || '').substring(0, 120));
     const trackBit = m.track_code ? `<div class="msg-item-track">📦 ${escHtml(m.track_code)}</div>` : '';
     const repliedBadge = !g.hasUnreplied
       ? `<span style="font-size:0.6rem;background:var(--success-dim);color:var(--success);border:1px solid rgba(52,211,153,0.3);border-radius:6px;padding:1px 6px;flex-shrink:0">✓ Replied</span>`
@@ -1823,12 +1866,20 @@ function renderMessagesPage() {
     // Show admin's reply as preview if they sent last, otherwise show user's message
     const lastReply = m.reply || '';
     const adminSentLast = !!lastReply;
-    const isImage  = !adminSentLast && ((m.message || '').startsWith('[image]') || (m.message || '').startsWith('[image-path]'));
-    const preview  = adminSentLast
-      ? `<span style="color:var(--indigo-light);font-size:0.72rem;font-weight:600">You: </span>${escHtml(lastReply.substring(0, 100))}`
-      : isImage
-        ? `<span class="msg-item-preview-img">📷 Photo</span>`
-        : escHtml((m.message || '').substring(0, 120));
+    const isAdminImg = adminSentLast && lastReply.startsWith('[admin-image]');
+    const isUserImg  = !adminSentLast && ((m.message || '').startsWith('[image]') || (m.message || '').startsWith('[image-path]'));
+    const isAdminSentRow = (m.message || '') === '[admin-sent]';
+    const isTyping = m.track_code && typingUsers.has(m.track_code);
+    const typingHtml = `<span class="msg-item-typing">typing<span class="msg-item-typing-dots"><span></span><span></span><span></span></span></span>`;
+    const preview  = isTyping
+      ? typingHtml
+      : isAdminImg
+      ? `<span style="color:var(--indigo-light);font-size:0.72rem;font-weight:600">You: </span><span class="msg-item-preview-img">📷 Photo</span>`
+      : adminSentLast && !isAdminSentRow
+        ? `<span style="color:var(--indigo-light);font-size:0.72rem;font-weight:600">You: </span>${escHtml(lastReply.substring(0, 100))}`
+        : isUserImg || isAdminSentRow
+          ? `<span class="msg-item-preview-img">📷 Photo</span>`
+          : escHtml((m.message || '').substring(0, 120));
     const trackBit = m.track_code ? `<div class="msg-item-track">📦 ${escHtml(m.track_code)}</div>` : '';
     const repliedBadge = !g.hasUnreplied
       ? `<span style="font-size:0.6rem;background:var(--success-dim);color:var(--success);border:1px solid rgba(52,211,153,0.3);border-radius:6px;padding:1px 6px;flex-shrink:0">✓ Replied</span>`
@@ -1963,8 +2014,8 @@ function csSubscribe(trackCode, fallbackName) {
   if (csChannel) { try { _sb.removeChannel(csChannel); } catch(_){} }
   if (!trackCode && !fallbackName) return;
 
-  // Unique channel name prevents stale subs from a previous openChatScreen from firing
-  const channelKey = 'admin-chat-' + (trackCode || fallbackName) + '-' + Date.now();
+  // Shared stable channel name — MUST match message.html so broadcast events cross between tabs
+  const channelKey = 'chat-room-' + (trackCode || fallbackName);
 
   csChannel = _sb
     .channel(channelKey)
@@ -2014,6 +2065,7 @@ function csSubscribe(trackCode, fallbackName) {
 
 // ── TYPING INDICATORS ──────────────────────────────────────────────────────────
 let _userTypingTimer  = null;
+// typingUsers Map is declared in STATE section at top
 
 function showUserTyping() {
   const bubble = document.getElementById('csTypingBubble');
@@ -2028,6 +2080,14 @@ function showUserTyping() {
   const area = document.getElementById('csMessages');
   area.appendChild(bubble); // keep at bottom
   csScrollBottom();
+
+  // Also mark this user as typing in the message list
+  if (csCurrentUser && csCurrentUser.track_code) {
+    const tc = csCurrentUser.track_code;
+    if (typingUsers.has(tc)) clearTimeout(typingUsers.get(tc));
+    typingUsers.set(tc, null);
+    renderMessages(); // refresh list to show typing dots
+  }
 }
 
 function hideUserTyping() {
@@ -2035,6 +2095,12 @@ function hideUserTyping() {
   if (bubble) bubble.classList.remove('show');
   clearTimeout(_userTypingTimer);
   _userTypingTimer = null;
+
+  // Remove from typing map and refresh list
+  if (csCurrentUser && csCurrentUser.track_code) {
+    typingUsers.delete(csCurrentUser.track_code);
+    renderMessages();
+  }
 }
 
 // Admin typing emit — start/stop
@@ -2105,37 +2171,42 @@ async function csHandlePhotoSelect(event) {
 
     if (uploadError) throw uploadError;
 
-    // Render admin photo bubble immediately (optimistic)
-    const imgUrl = `https://azxbtwklromrnmyutmoz.supabase.co/storage/v1/object/public/chat-images/${fileName}`;
+    const imgUrl    = `https://azxbtwklromrnmyutmoz.supabase.co/storage/v1/object/public/chat-images/${fileName}`;
+    const sentAt    = new Date().toISOString();
+    const userName  = csCurrentUser ? (csCurrentUser.name || csCurrentUser.full_name || 'Unknown') : 'Unknown';
 
-    // We store admin photos by updating a new message row tagged as admin-sent
-    // Actually — admin photos go into a synthetic admin bubble (not a DB row for now)
-    // We'll use the existing reply update mechanism: update the latest unreplied msg reply with [image-path]
-    const targetId = csCurrentMsgId;
-    if (!targetId) { showToast('⚠ No message to attach photo to.', 'error'); return; }
-
-    const repliedAt = new Date().toISOString();
-    const { error } = await _sb
+    // Insert a brand-new row for the admin photo so it never overwrites a previous photo/reply
+    const newRow = {
+      name:       userName,
+      track_code: trackCode,
+      message:    '[admin-sent]',           // sentinel — this row was sent by admin
+      reply:      '[admin-image]' + fileName,
+      replied_at: sentAt,
+      read:       true,
+      created_at: sentAt
+    };
+    const { data: inserted, error } = await _sb
       .from('messages')
-      .update({ reply: '[admin-image]' + fileName, replied_at: repliedAt, read: true })
-      .eq('id', targetId);
+      .insert([newRow])
+      .select('id, name, track_code, message, reply, replied_at, created_at, read')
+      .single();
 
     if (error) throw error;
 
-    // Update local cache
-    const m = allMessages.find(x => x.id === targetId);
-    if (m) { m.reply = '[admin-image]' + fileName; m.replied_at = repliedAt; m.read = true; }
+    // Update local cache and advance csCurrentMsgId to this new row
+    allMessages.push(inserted);
+    csCurrentMsgId = inserted.id;
 
-    // Render admin image bubble
+    // Render admin image bubble optimistically
     const el = document.createElement('div');
     el.className = 'cs-bubble-row admin-side';
-    el.dataset.csReplyFor = targetId;
+    el.dataset.csReplyFor = inserted.id;
     el.innerHTML = `
       <div class="cs-bav admin-av">A</div>
       <div class="cs-bubble">
         <img src="${escHtml(imgUrl)}" class="cs-bubble-img" alt="Photo" onclick="openLightbox('${escHtml(imgUrl)}')" style="cursor:pointer"
           onerror="this.outerHTML='<div style=\\'color:rgba(255,255,255,0.5);font-size:0.8rem\\'>📷 Photo</div>'" />
-        <span class="cs-time">${csFmtTime(repliedAt)}</span>
+        <span class="cs-time">${csFmtTime(sentAt)}</span>
       </div>`;
     document.getElementById('csMessages').appendChild(el);
     csScrollBottom();
