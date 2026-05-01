@@ -1998,11 +1998,20 @@ function openChatScreen(msgId) {
   csSubscribe(m.track_code, m.name);
 }
 
-function closeChatScreen() {
+async function closeChatScreen() {
   // Stop any active typing emit before tearing down
   emitAdminStoppedTyping();
   // Remove sub first so no stale events fire during teardown
   if (csChannel) { try { _sb.removeChannel(csChannel); } catch(_){} csChannel = null; }
+
+  // Delete all messages for this conversation from Supabase
+  if (csCurrentUser) {
+    const tc = csCurrentUser.track_code;
+    if (tc) {
+      await _sb.from('messages').delete().eq('track_code', tc);
+    }
+  }
+
   document.getElementById('adminChatScreen').classList.remove('open');
   csCurrentMsgId = null;
   csCurrentUser  = null;
