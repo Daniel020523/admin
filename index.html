@@ -655,7 +655,8 @@
     font-size: 0.72rem; font-weight: 800; color: #fff;
   }
   .cs-bav.user-av { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-  .cs-bav.admin-av { background: linear-gradient(135deg, #34d399, #059669); }
+  .cs-bav.admin-av { background: transparent; overflow: hidden; }
+  .cs-bav.admin-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
   .cs-bubble {
     max-width: 68%; padding: 0.7rem 1rem;
@@ -2214,7 +2215,7 @@ async function csHandlePhotoSelect(event) {
     el.className = 'cs-bubble-row admin-side';
     el.dataset.csReplyFor = inserted.id;
     el.innerHTML = `
-      <div class="cs-bav admin-av">A</div>
+      <div class="cs-bav admin-av"><img src="GLOBALSKY.png.jpg" alt="GS" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.style.background='linear-gradient(135deg,#34d399,#059669)';this.remove()"></div>
       <div class="cs-bubble">
         <img src="${escHtml(imgUrl)}" class="cs-bubble-img" alt="Photo" onclick="openLightbox('${escHtml(imgUrl)}')" style="cursor:pointer"
           onerror="this.outerHTML='<div style=\\'color:rgba(255,255,255,0.5);font-size:0.8rem\\'>📷 Photo</div>'" />
@@ -2287,7 +2288,7 @@ function csRenderAdminBubble(row) {
   el.className  = 'cs-bubble-row admin-side';
   el.dataset.csReplyFor = row.id;
   el.innerHTML  = `
-    <div class="cs-bav admin-av">A</div>
+    <div class="cs-bav admin-av"><img src="GLOBALSKY.png.jpg" alt="GS" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.style.background='linear-gradient(135deg,#34d399,#059669)';this.remove()"></div>
     <div class="cs-bubble">${bodyHtml}<span class="cs-time">${timeStr}</span></div>`;
   area.appendChild(el);
 }
