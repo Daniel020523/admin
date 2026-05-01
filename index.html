@@ -1937,8 +1937,13 @@ function csRebuildChat() {
   csAppendSysMsg('Conversation with ' + escHtml(name));
 
   userMsgs.forEach(row => {
-    csRenderUserBubble(row);
-    if (row.reply) csRenderAdminBubble(row);
+    if ((row.message || '') === '[admin-sent]') {
+      // Admin photo row — render as admin bubble only
+      if (row.reply) csRenderAdminBubble(row);
+    } else {
+      csRenderUserBubble(row);
+      if (row.reply) csRenderAdminBubble(row);
+    }
   });
 
   // Keep csCurrentMsgId pointing to the latest unreplied message
@@ -2048,7 +2053,7 @@ function csSubscribe(trackCode, fallbackName) {
       if (!belongs) return;
       if (!allMessages.find(x => x.id === payload.new.id)) allMessages.push(payload.new);
       const existing = document.querySelector(`[data-cs-msg-id="${payload.new.id}"]`);
-      if (!existing) { csRenderUserBubble(payload.new); csScrollBottom(); csAppendSysMsg('New message from user'); }
+      if (!existing && (payload.new.message || '') !== '[admin-sent]') { csRenderUserBubble(payload.new); csScrollBottom(); csAppendSysMsg('New message from user'); }
     })
     .on('broadcast', { event: 'user_typing_start' }, (payload) => {
       if (payload.payload && payload.payload.track_code === trackCode) {
@@ -2081,24 +2086,31 @@ function showUserTyping() {
   area.appendChild(bubble); // keep at bottom
   csScrollBottom();
 
+  // Auto-hide after 3s — restart timer on every new typing_start event
+  clearTimeout(_userTypingTimer);
+  _userTypingTimer = setTimeout(() => hideUserTyping(), 3000);
+
   // Also mark this user as typing in the message list
   if (csCurrentUser && csCurrentUser.track_code) {
     const tc = csCurrentUser.track_code;
     if (typingUsers.has(tc)) clearTimeout(typingUsers.get(tc));
-    typingUsers.set(tc, null);
+    const listTid = setTimeout(() => { typingUsers.delete(tc); renderMessages(); }, 3000);
+    typingUsers.set(tc, listTid);
     renderMessages(); // refresh list to show typing dots
   }
 }
 
 function hideUserTyping() {
-  const bubble = document.getElementById('csTypingBubble');
-  if (bubble) bubble.classList.remove('show');
   clearTimeout(_userTypingTimer);
   _userTypingTimer = null;
+  const bubble = document.getElementById('csTypingBubble');
+  if (bubble) bubble.classList.remove('show');
 
   // Remove from typing map and refresh list
   if (csCurrentUser && csCurrentUser.track_code) {
-    typingUsers.delete(csCurrentUser.track_code);
+    const tc = csCurrentUser.track_code;
+    if (typingUsers.has(tc)) clearTimeout(typingUsers.get(tc));
+    typingUsers.delete(tc);
     renderMessages();
   }
 }
@@ -2127,7 +2139,7 @@ function emitAdminTyping() {
       event: 'admin_typing_stop',
       payload: { track_code: csCurrentUser ? csCurrentUser.track_code : null }
     });
-  }, 1500);
+  }, 3000);
 }
 
 function emitAdminStoppedTyping() {
@@ -2210,7 +2222,6 @@ async function csHandlePhotoSelect(event) {
       </div>`;
     document.getElementById('csMessages').appendChild(el);
     csScrollBottom();
-    showToast('✅ Photo sent!', 'success');
     renderMessages();
   } catch (err) {
     console.error('Admin photo upload error:', err);
@@ -2223,6 +2234,9 @@ async function csHandlePhotoSelect(event) {
 }
 
 function csRenderUserBubble(row) {
+  // [admin-sent] rows are admin photo rows — they render as admin bubbles only, never as user bubbles
+  if ((row.message || '') === '[admin-sent]') return;
+
   const area     = document.getElementById('csMessages');
   const name     = row.name || row.full_name || 'User';
   const initials = name.slice(0, 1).toUpperCase();
