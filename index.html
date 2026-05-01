@@ -740,9 +740,19 @@
 <body>
 
 <!-- Lightbox -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+<div class="lightbox" id="lightbox">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-  <img id="lightboxImg" src="" alt="Photo" />
+  <a id="lightboxDownload" href="" download="photo.jpg"
+     onclick="event.stopPropagation()"
+     style="position:absolute;bottom:1.75rem;left:50%;transform:translateX(-50%);
+            background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);
+            color:#fff;padding:0.65rem 1.6rem;border-radius:12px;
+            font-family:'Outfit',sans-serif;font-size:0.88rem;font-weight:700;
+            text-decoration:none;backdrop-filter:blur(8px);white-space:nowrap;
+            display:flex;align-items:center;gap:0.5rem">
+    ⬇ Save Photo
+  </a>
+  <img id="lightboxImg" src="" alt="Photo" onclick="closeLightbox()" style="cursor:zoom-out" />
 </div>
 
 <div class="bg-fx"></div>
@@ -1495,6 +1505,10 @@ function escHtml(s) {
 // ── Lightbox ────────────────────────────────────────────────
 function openLightbox(src) {
   document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxDownload').href = src;
+  // Try to extract a clean filename for the download
+  const parts = src.split('/');
+  document.getElementById('lightboxDownload').download = parts[parts.length - 1] || 'photo.jpg';
   document.getElementById('lightbox').classList.add('open');
 }
 function closeLightbox() {
@@ -1933,7 +1947,16 @@ function csRenderUserBubble(row) {
 
   let bodyHtml;
   if (isImg) {
-    bodyHtml = `<div style="display:flex;align-items:center;gap:0.5rem;color:rgba(255,255,255,0.75);font-size:0.8rem"><span>📷</span><span>Photo — click to load in message details</span></div>`;
+    const fileName = content.replace('[image-path]', '').replace('[image]', '');
+    const imgUrl   = `https://azxbtwklromrnmyutmoz.supabase.co/storage/v1/object/public/chat-images/${fileName}`;
+    bodyHtml = `<img
+      src="${imgUrl}"
+      class="cs-bubble-img"
+      alt="Photo"
+      onclick="openLightbox('${imgUrl}')"
+      style="cursor:pointer"
+      onerror="this.outerHTML='<div style=\'display:flex;align-items:center;gap:0.5rem;color:rgba(255,255,255,0.5);font-size:0.8rem\'><span>📷</span><span>Photo (tap to retry)</span></div>'"
+    />`;
   } else {
     bodyHtml = escHtml(content);
   }
